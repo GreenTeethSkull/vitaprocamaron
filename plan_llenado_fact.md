@@ -50,6 +50,10 @@ TAMANO  = "0,8"  # Editable manualmente
 
 # ===== ID DE REGISTRO INICIAL =====
 ID_REGISTRO_INICIO = "REG-0012001"  # Formato: REG-XXXXXXX, incremental
+
+# ===== FLAG DE PRUEBAS (Editable) =====
+MODO_PRUEBA = True    # True = modo prueba, False = procesar todas las filas
+FILAS_PRUEBA = 2      # Cantidad de filas a procesar en modo prueba (1, 2, etc.)
 ```
 
 ### 1.3 Mapeo de Conversión Línea (Editable)
@@ -76,7 +80,18 @@ CONVERSION_LINEA = {
   - Ejemplo: `99.65%` → `99.65`
 - Aplica para **todos** los campos numéricos de todas las tablas.
 
-### 2.3 Generación de ID de Registro
+### 2.3 Modo de Prueba (Flag)
+- Existe un flag editable `MODO_PRUEBA` que permite ejecutar el script solo con las primeras N filas de la tabla principal.
+- `MODO_PRUEBA = True` → procesa solo `FILAS_PRUEBA` filas (por defecto 2).
+- `MODO_PRUEBA = False` → procesa **todas** las filas de la tabla principal.
+- Esto permite validar el resultado antes de ejecutar el proceso completo.
+
+### 2.4 No Sobreescribir Tablas Existentes
+- Las 12 tablas de salida **NO deben sobreescribir** el contenido ya existente.
+- Si el archivo CSV de salida ya existe, se deben **cargar las filas existentes** y **agregar las nuevas filas al final**, manteniendo todo el contenido previo.
+- Si el archivo CSV de salida no existe, se crea uno nuevo con encabezados y las filas generadas.
+
+### 2.5 Generación de ID de Registro
 - Se genera un **ID único** por cada fila de la tabla principal.
 - Formato: `REG-XXXXXXX` (7 dígitos con ceros a la izquierda).
 - Inicia en `REG-0012001` y se incrementa secuencialmente: `REG-0012001`, `REG-0012002`, `REG-0012003`, ...
@@ -138,12 +153,19 @@ CONVERSION_LINEA = {
 - Ejemplo: `"99.65%"` → `99.65`
 
 ### 4.4 `convertir_lote_a_fecha(lote)`
-- Recibe un lote con formato `XXYYddMMXX`.
-- Extrae posiciones: `YY` = año, `dd` = día, `MM` = mes.
+- Recibe un lote con formato `XXYYMMddXX`.
+- Extrae posiciones: `YY` = año (pos 2-3), `MM` = mes (pos 4-5), `dd` = día (pos 6-7).
 - Retorna fecha en formato `dd/MM/YY`.
-- Ejemplo: `PE260102BO` → `01/02/26`
+- Ejemplo: `PE260102BO` → `02/01/26`
 
-### 4.5 `convertir_linea(letra)`
+### 4.5 `buscar_con_filtros_fecha(df_dim, codigo, fecha_produccion)`
+- Búsqueda escalonada para `IdProducto` e `IdDisenoProducto`.
+- **1er filtro:** Buscar `codigo` en columna `Codigo` de `df_dim`. Si hay 1 coincidencia → retornar `ID`.
+- **2do filtro:** Si hay varias coincidencias, filtrar donde `fecha_produccion >= FechaInicio`. Si hay 1 coincidencia → retornar `ID`.
+- **3er filtro:** Si aún hay varias, filtrar donde `fecha_produccion <= FechaFin`. Si hay 1 coincidencia → retornar `ID`.
+- Si no hay coincidencia en ningún paso → retornar `null`.
+
+### 4.6 `convertir_linea(letra)`
 - Convierte letra a número según el mapeo editable: `A=13, B=14, C=15`.
 - Retorna `null` si la letra no está en el mapeo.
 
@@ -166,17 +188,17 @@ CONVERSION_LINEA = {
 | IdTurno            | Extraer valor de columna `Turno` → buscar en `Dim_Turno.csv` columna `Turno` → extraer `ID`                                                                                                                   |
 | IdIngeniero        | Dejar vacío                                                                                                                                                                                                    |
 | IdTecnico          | Extraer valor de columna `TAC` → buscar en `Dim_Tecnico.csv` columna `AbreviaturaNombre` → extraer `ID`                                                                                                       |
-| IdProducto         | Extraer valor de columna `Codigo` → buscar en `Dim_Producto.csv` columna `Codigo` → extraer `ID`                                                                                                              |
+| IdProducto         | Búsqueda escalonada en `Dim_Producto.csv`: **1er filtro:** buscar `Codigo` en columna `Codigo`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **2do filtro:** `FechaProduccion >= FechaInicio`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **3er filtro:** `FechaProduccion <= FechaFin` → extraer `ID`. Si no hay coincidencia en ningún filtro → `null` |
 | IdLinea            | Extraer valor de columna `Linea` → convertir letra a número (`A=13, B=14, C=15`) → buscar en `Dim_Linea.csv` columna `Linea` → extraer `ID`                                                                  |
 | Hora               | Extraer de columna `Hora`                                                                                                                                                                                      |
 | Lote               | Extraer de columna `Lote`                                                                                                                                                                                      |
-| FechaProduccion    | Extraer de columna `Lote` → convertir formato `XXYYddMMXX` → `dd/MM/YY`. Ejemplo: `PE260102BO` → `01/02/26`                                                                                                  |
+| FechaProduccion    | Extraer de columna `Lote` → convertir formato `XXYYMMddXX` → `dd/MM/YY`. Ejemplo: `PE260102BO` → `02/01/26`                                                                                                  |
 | IdEtapa            | Extraer valor de columna `Etapa` → buscar en `Dim_Etapa.csv` columna `Etapa` → extraer `ID`                                                                                                                   |
 | TolvaPorEnvasar    | Dejar en blanco                                                                                                                                                                                                |
 | CantidadBolsas     | Extraer de columna `Total Bolsas`                                                                                                                                                                              |
 | Toneladas          | Extraer de columna `TN`                                                                                                                                                                                        |
 | CodigoQM           | Extraer de columna `Codigo QM`                                                                                                                                                                                 |
-| IdDisenoProducto   | Extraer valor de columna `Codigo` → buscar en `Dim_Diseno_Producto.csv` columna `Codigo` → extraer `ID`                                                                                                       |
+| IdDisenoProducto   | Búsqueda escalonada en `Dim_Diseno_Producto.csv`: **1er filtro:** buscar `Codigo` en columna `Codigo`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **2do filtro:** `FechaProduccion >= FechaInicio`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **3er filtro:** `FechaProduccion <= FechaFin` → extraer `ID`. Si no hay coincidencia en ningún filtro → `null` |
 | IdAutorizador      | Extraer valor de columna `Autorizado por:` → buscar en `Dim_Autorizador.csv` columna `AbreviaturaNombre` → extraer `ID`                                                                                       |
 | VerEspTecnica      | Dejar en blanco                                                                                                                                                                                                |
 | VerEtiqueta        | Dejar en blanco                                                                                                                                                                                                |
@@ -376,10 +398,10 @@ CONVERSION_LINEA = {
 | ------------------------------------ | ---------------------- | -------------------- | ------------------ |
 | Dim_Turno.csv                        | Turno                  | ID                   | 01                 |
 | Dim_Tecnico.csv                      | AbreviaturaNombre      | ID                   | 01                 |
-| Dim_Producto.csv                     | Codigo                 | ID                   | 01                 |
+| Dim_Producto.csv                     | Codigo + FechaInicio + FechaFin (escalonado) | ID      | 01                 |
 | Dim_Linea.csv                        | Linea                  | ID                   | 01                 |
 | Dim_Etapa.csv                        | Etapa                  | ID                   | 01                 |
-| Dim_Diseno_Producto.csv              | Codigo                 | ID                   | 01                 |
+| Dim_Diseno_Producto.csv              | Codigo + FechaInicio + FechaFin (escalonado) | ID      | 01                 |
 | Dim_Autorizador.csv                  | AbreviaturaNombre      | ID                   | 01                 |
 | Dim_Motivo_Causa_No_Conforme.csv     | Motivo + Causa         | ID                   | 12                 |
 | Dim_Decision_Empleo.csv              | Decision               | ID                   | 12                 |
@@ -422,7 +444,7 @@ CONVERSION_LINEA = {
 | Valor no encontrado en tabla dimensional        | Colocar `null`                                            |
 | Valor vacío o nulo en tabla principal            | Colocar `null`                                            |
 | Letra de línea no está en mapeo (A, B, C)       | Colocar `null`                                            |
-| Formato de Lote no cumple `XXYYddMMXX`          | Colocar `null` en FechaProduccion                         |
+| Formato de Lote no cumple `XXYYMMddXX`          | Colocar `null` en FechaProduccion                         |
 | Columnas `AF -` o `VQ -` no coinciden en cantidad con arrays de ID | Generar advertencia en log y procesar las que existan     |
 | Valor numérico con carácter `%`                 | Remover `%` y conservar el número                         |
 | Archivo dimensional no encontrado               | Error fatal: detener ejecución e informar                 |

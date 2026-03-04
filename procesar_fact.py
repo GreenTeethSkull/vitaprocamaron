@@ -1,11 +1,11 @@
 import pandas as pd
 import numpy as np
 import os
-import re
+from datetime import datetime
 
-# ============================================================================
-# 1. CONFIGURACIÓN EDITABLE
-# ============================================================================
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                    SECCIÓN 1: CONFIGURACIÓN EDITABLE                       ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # ===== TABLA PRINCIPAL =====
 TABLA_PRINCIPAL = "Extruido_2024.csv"
@@ -45,7 +45,11 @@ PROCESO = "Extruido"
 TAMANO  = "0,8"
 
 # ===== ID DE REGISTRO INICIAL =====
-ID_REGISTRO_INICIO = 12001  # Parte numérica de REG-0012001
+ID_REGISTRO_INICIO = "REG-0012001"  # Formato: REG-XXXXXXX, incremental
+
+# ===== FLAG DE PRUEBAS (Editable) =====
+MODO_PRUEBA  = True   # True = modo prueba, False = procesar todas las filas
+FILAS_PRUEBA = 2      # Cantidad de filas a procesar en modo prueba (1, 2, etc.)
 
 # ===== MAPEO DE CONVERSIÓN LÍNEA =====
 CONVERSION_LINEA = {
@@ -54,396 +58,460 @@ CONVERSION_LINEA = {
     "C": 15
 }
 
-# ===== DIRECTORIO DE ENTRADA Y SALIDA =====
-DIR_ENTRADA = "./"  # Editable: carpeta donde están los CSV de entrada
-DIR_SALIDA  = "./"  # Editable: carpeta donde se guardarán los CSV de salida
 
-
-# ============================================================================
-# 2. FUNCIONES AUXILIARES
-# ============================================================================
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                    SECCIÓN 2: FUNCIONES AUXILIARES                         ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 def generar_id_registro(indice):
-    """Genera ID con formato REG-XXXXXXX a partir del índice."""
-    numero = ID_REGISTRO_INICIO + indice
+    """Genera ID con formato REG-XXXXXXX a partir del índice base."""
+    base = int(ID_REGISTRO_INICIO.replace("REG-", ""))
+    numero = base + indice
     return f"REG-{numero:07d}"
 
 
 def limpiar_valor_numerico(valor):
-    """
-    Remueve el carácter '%' si existe al final del valor.
-    Retorna None si el valor es vacío o nulo.
-    """
+    """Remueve '%' y retorna el valor limpio. Retorna None si es nulo/vacío."""
     if valor is None:
         return None
-    if isinstance(valor, (int, float)):
-        if pd.isna(valor):
-            return None
-        return valor
     valor_str = str(valor).strip()
     if valor_str == "" or valor_str.lower() == "nan" or valor_str.lower() == "none":
         return None
-    # Remover carácter %
     if valor_str.endswith("%"):
         valor_str = valor_str[:-1].strip()
-    # Intentar convertir a número
+    if valor_str == "":
+        return None
+    return valor_str
+
+
+def extraer_valor(fila, columna):
+    """Extrae un valor de la fila. Retorna None si la columna no existe o el valor es nulo."""
     try:
-        if "." in valor_str or "," in valor_str:
-            valor_str = valor_str.replace(",", ".")
-            return float(valor_str)
-        return float(valor_str)
-    except ValueError:
+        valor = fila[columna]
+        if pd.isna(valor):
+            return None
+        valor_str = str(valor).strip()
+        if valor_str == "" or valor_str.lower() == "nan":
+            return None
         return valor_str
-
-
-def obtener_valor(fila, columna):
-    """
-    Extrae un valor de una fila. Si es nulo o vacío retorna None.
-    """
-    if columna not in fila.index:
-        print(f"  [ADVERTENCIA] Columna '{columna}' no encontrada en la tabla principal.")
+    except (KeyError, TypeError):
         return None
-    valor = fila[columna]
-    if pd.isna(valor):
-        return None
-    valor_str = str(valor).strip()
-    if valor_str == "" or valor_str.lower() == "nan" or valor_str.lower() == "none":
-        return None
-    return valor
-
-
-def obtener_valor_limpio(fila, columna):
-    """Extrae un valor y aplica limpieza numérica (remueve %)."""
-    valor = obtener_valor(fila, columna)
-    if valor is None:
-        return None
-    return limpiar_valor_numerico(valor)
 
 
 def buscar_en_dimension(df_dim, columna_busqueda, valor, columna_resultado="ID"):
-    """
-    Busca un valor en una tabla dimensional y retorna el ID correspondiente.
-    Retorna None si no encuentra coincidencia o si el valor es nulo.
-    """
+    """Busca valor en columna_busqueda del DataFrame. Retorna columna_resultado o None."""
     if valor is None:
         return None
     valor_str = str(valor).strip()
     if valor_str == "" or valor_str.lower() == "nan":
         return None
-    # Buscar coincidencia
-    df_dim[columna_busqueda] = df_dim[columna_busqueda].astype(str).str.strip()
-    coincidencias = df_dim[df_dim[columna_busqueda] == valor_str]
-    if coincidencias.empty:
-        print(f"  [ADVERTENCIA] Valor '{valor_str}' no encontrado en columna '{columna_busqueda}' de tabla dimensional.")
+    try:
+        coincidencias = df_dim[df_dim[columna_busqueda].astype(str).str.strip() == valor_str]
+        if len(coincidencias) >= 1:
+            resultado = coincidencias.iloc[0][columna_resultado]
+            if pd.isna(resultado):
+                return None
+            return resultado
         return None
-    return coincidencias.iloc[0][columna_resultado]
-
-
-def buscar_motivo_causa(df_dim, motivo, causa):
-    """
-    Busca coincidencia simultánea de Motivo y Causa en la tabla dimensional.
-    Retorna el ID o None.
-    """
-    if motivo is None and causa is None:
+    except (KeyError, TypeError):
         return None
-    motivo_str = str(motivo).strip() if motivo is not None else ""
-    causa_str = str(causa).strip() if causa is not None else ""
-    if motivo_str.lower() in ("", "nan", "none") and causa_str.lower() in ("", "nan", "none"):
-        return None
-    df_dim["Motivo"] = df_dim["Motivo"].astype(str).str.strip()
-    df_dim["Causa"] = df_dim["Causa"].astype(str).str.strip()
-    coincidencias = df_dim[
-        (df_dim["Motivo"] == motivo_str) & (df_dim["Causa"] == causa_str)
-    ]
-    if coincidencias.empty:
-        print(f"  [ADVERTENCIA] Motivo='{motivo_str}', Causa='{causa_str}' no encontrado en Dim_Motivo_Causa.")
-        return None
-    return coincidencias.iloc[0]["ID"]
 
 
 def convertir_lote_a_fecha(lote):
     """
-    Convierte un lote con formato XXYYddMMXX a dd/MM/YY.
-    Ejemplo: PE260102BO → 01/02/26
+    Convierte lote formato XXYYMMddXX a fecha dd/MM/YY.
+    Ejemplo: PE260102BO → 02/01/26
+    Posiciones: YY=2-3, MM=4-5, dd=6-7
     """
     if lote is None:
         return None
     lote_str = str(lote).strip()
-    if len(lote_str) < 10:
-        print(f"  [ADVERTENCIA] Formato de lote '{lote_str}' no cumple XXYYddMMXX.")
+    if len(lote_str) < 8:
         return None
     try:
         yy = lote_str[2:4]
-        dd = lote_str[4:6]
-        mm = lote_str[6:8]
+        mm = lote_str[4:6]
+        dd = lote_str[6:8]
         # Validar que sean numéricos
         int(yy)
-        int(dd)
         int(mm)
+        int(dd)
         return f"{dd}/{mm}/{yy}"
     except (ValueError, IndexError):
-        print(f"  [ADVERTENCIA] No se pudo convertir lote '{lote_str}' a fecha.")
+        return None
+
+
+def fecha_str_a_date(fecha_str):
+    """Convierte fecha string dd/MM/YY a objeto date para comparaciones."""
+    if fecha_str is None:
+        return None
+    try:
+        return datetime.strptime(fecha_str.strip(), "%d/%m/%y").date()
+    except (ValueError, AttributeError):
+        # Intentar otros formatos comunes
+        for fmt in ["%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d-%m-%y"]:
+            try:
+                return datetime.strptime(fecha_str.strip(), fmt).date()
+            except (ValueError, AttributeError):
+                continue
+        return None
+
+
+def buscar_con_filtros_fecha(df_dim, codigo, fecha_produccion_str):
+    """
+    Búsqueda escalonada para IdProducto e IdDisenoProducto.
+    1er filtro: Codigo
+    2do filtro: FechaProduccion >= FechaInicio
+    3er filtro: FechaProduccion <= FechaFin
+    """
+    if codigo is None:
+        return None
+    codigo_str = str(codigo).strip()
+    if codigo_str == "" or codigo_str.lower() == "nan":
+        return None
+
+    try:
+        # 1er filtro: buscar por Codigo
+        coincidencias = df_dim[df_dim["Codigo"].astype(str).str.strip() == codigo_str]
+
+        if len(coincidencias) == 0:
+            return None
+        if len(coincidencias) == 1:
+            resultado = coincidencias.iloc[0]["ID"]
+            return None if pd.isna(resultado) else resultado
+
+        # Hay varias coincidencias → aplicar 2do filtro
+        fecha_prod = fecha_str_a_date(fecha_produccion_str)
+        if fecha_prod is None:
+            return None
+
+        # 2do filtro: FechaProduccion >= FechaInicio
+        filtradas = []
+        for _, row in coincidencias.iterrows():
+            fecha_inicio_str = str(row.get("FechaInicio", "")).strip()
+            fecha_inicio = fecha_str_a_date(fecha_inicio_str)
+            if fecha_inicio is not None and fecha_prod >= fecha_inicio:
+                filtradas.append(row)
+
+        if len(filtradas) == 0:
+            return None
+        if len(filtradas) == 1:
+            resultado = filtradas[0]["ID"]
+            return None if pd.isna(resultado) else resultado
+
+        # 3er filtro: FechaProduccion <= FechaFin
+        filtradas_final = []
+        for row in filtradas:
+            fecha_fin_str = str(row.get("FechaFin", "")).strip()
+            fecha_fin = fecha_str_a_date(fecha_fin_str)
+            if fecha_fin is not None and fecha_prod <= fecha_fin:
+                filtradas_final.append(row)
+
+        if len(filtradas_final) >= 1:
+            resultado = filtradas_final[0]["ID"]
+            return None if pd.isna(resultado) else resultado
+
+        return None
+
+    except (KeyError, TypeError) as e:
+        print(f"  [WARN] Error en buscar_con_filtros_fecha: {e}")
         return None
 
 
 def convertir_linea(letra):
-    """Convierte letra de línea a número según el mapeo editable."""
+    """Convierte letra de línea a número según mapeo editable."""
     if letra is None:
         return None
     letra_str = str(letra).strip().upper()
-    if letra_str in CONVERSION_LINEA:
-        return CONVERSION_LINEA[letra_str]
-    print(f"  [ADVERTENCIA] Letra de línea '{letra_str}' no está en el mapeo.")
-    return None
+    return CONVERSION_LINEA.get(letra_str, None)
 
 
-def identificar_columnas_longitud(columnas):
-    """
-    Identifica las columnas AF - para longitud:
-    todas las que empiezan con 'AF - ' hasta antes de 'AF - Conforme Longitud'.
-    """
-    cols_af = [c for c in columnas if c.startswith("AF - ")]
-    resultado = []
-    for col in cols_af:
-        if "Conforme Longitud" in col:
-            break
-        resultado.append(col)
-    return resultado
-
-
-def identificar_columnas_diametro(columnas):
-    """
-    Identifica las columnas AF - para diámetro:
-    después de 'AF - Longitud <= 10.00 %' hasta antes de 'AF - Conforme Diametro'.
-    """
-    cols_af = [c for c in columnas if c.startswith("AF - ")]
-    # Encontrar el índice de la columna que contiene "Longitud" y "10.00"
-    inicio = None
-    for i, col in enumerate(cols_af):
-        if "Longitud" in col and "10.00" in col:
-            inicio = i + 1
-            break
-    # Encontrar el índice de "Conforme Longitud" como alternativa
-    if inicio is None:
-        for i, col in enumerate(cols_af):
-            if "Conforme Longitud" in col:
-                inicio = i + 1
-                break
-    if inicio is None:
-        print("  [ADVERTENCIA] No se encontró columna delimitadora para diámetro.")
-        return []
-    resultado = []
-    for col in cols_af[inicio:]:
-        if "Conforme Diametro" in col:
-            break
-        resultado.append(col)
-    return resultado
-
-
-def identificar_columnas_quimico(columnas):
-    """Identifica todas las columnas que empiezan con 'VQ - '."""
-    return [c for c in columnas if c.startswith("VQ - ")]
-
-
-def cargar_csv(ruta, nombre_archivo):
-    """Carga un CSV con manejo de errores."""
-    filepath = os.path.join(ruta, nombre_archivo)
+def buscar_motivo_causa(df_dim, motivo, causa):
+    """Busca coincidencia simultánea de Motivo y Causa en Dim_Motivo_Causa."""
+    if motivo is None and causa is None:
+        return None
+    motivo_str = str(motivo).strip() if motivo is not None else ""
+    causa_str = str(causa).strip() if causa is not None else ""
+    if motivo_str.lower() in ("", "nan") and causa_str.lower() in ("", "nan"):
+        return None
     try:
-        df = pd.read_csv(filepath, encoding="utf-8")
-        print(f"  [OK] Cargado: {nombre_archivo} ({len(df)} filas, {len(df.columns)} columnas)")
+        mask = (df_dim["Motivo"].astype(str).str.strip() == motivo_str) & \
+               (df_dim["Causa"].astype(str).str.strip() == causa_str)
+        coincidencias = df_dim[mask]
+        if len(coincidencias) >= 1:
+            resultado = coincidencias.iloc[0]["ID"]
+            return None if pd.isna(resultado) else resultado
+        return None
+    except (KeyError, TypeError):
+        return None
+
+
+def cargar_csv_seguro(ruta, nombre_referencia):
+    """Carga un CSV de forma segura. Retorna DataFrame o None si falla."""
+    try:
+        df = pd.read_csv(ruta, encoding="utf-8")
+        print(f"  ✓ {nombre_referencia}: {len(df)} filas cargadas")
         return df
     except UnicodeDecodeError:
         try:
-            df = pd.read_csv(filepath, encoding="latin-1")
-            print(f"  [OK] Cargado (latin-1): {nombre_archivo} ({len(df)} filas, {len(df.columns)} columnas)")
+            df = pd.read_csv(ruta, encoding="latin-1")
+            print(f"  ✓ {nombre_referencia}: {len(df)} filas cargadas (latin-1)")
             return df
         except Exception as e:
-            print(f"  [ERROR FATAL] No se pudo cargar '{nombre_archivo}': {e}")
+            print(f"  ✗ ERROR cargando {nombre_referencia}: {e}")
             return None
     except FileNotFoundError:
-        print(f"  [ERROR FATAL] Archivo no encontrado: '{filepath}'")
+        print(f"  ✗ ERROR: Archivo no encontrado: {ruta}")
         return None
     except Exception as e:
-        print(f"  [ERROR FATAL] Error al cargar '{nombre_archivo}': {e}")
+        print(f"  ✗ ERROR cargando {nombre_referencia}: {e}")
         return None
 
 
-# ============================================================================
-# 3. FUNCIÓN PRINCIPAL
-# ============================================================================
+def exportar_csv_sin_sobreescribir(df_nuevo, ruta_archivo):
+    """
+    Exporta DataFrame a CSV sin sobreescribir contenido existente.
+    Si el archivo ya existe, agrega las nuevas filas al final.
+    Si no existe, crea uno nuevo con encabezados.
+    """
+    if os.path.exists(ruta_archivo):
+        try:
+            df_existente = pd.read_csv(ruta_archivo, encoding="utf-8")
+        except UnicodeDecodeError:
+            df_existente = pd.read_csv(ruta_archivo, encoding="latin-1")
+        df_combinado = pd.concat([df_existente, df_nuevo], ignore_index=True)
+        df_combinado.to_csv(ruta_archivo, index=False, encoding="utf-8")
+        filas_previas = len(df_existente)
+        filas_nuevas = len(df_nuevo)
+        print(f"  → {ruta_archivo}: {filas_previas} filas previas + {filas_nuevas} nuevas = {len(df_combinado)} total")
+    else:
+        df_nuevo.to_csv(ruta_archivo, index=False, encoding="utf-8")
+        print(f"  → {ruta_archivo}: {len(df_nuevo)} filas creadas (archivo nuevo)")
+
+
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                    SECCIÓN 3: FUNCIÓN PRINCIPAL                            ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 def ejecutar_llenado():
     print("=" * 70)
-    print("INICIO DEL PROCESO DE LLENADO DE TABLAS CSV")
+    print("  INICIO DEL PROCESO DE LLENADO DE 12 TABLAS CSV")
     print("=" * 70)
 
-    # -----------------------------------------------------------------
-    # PASO 1: Cargar tabla principal y tablas dimensionales
-    # -----------------------------------------------------------------
-    print("\n--- PASO 1: Cargando archivos CSV ---")
+    if MODO_PRUEBA:
+        print(f"\n  ⚠ MODO PRUEBA ACTIVADO: procesando solo {FILAS_PRUEBA} fila(s)\n")
+    else:
+        print(f"\n  ✓ MODO COMPLETO: procesando todas las filas\n")
 
-    df_principal = cargar_csv(DIR_ENTRADA, TABLA_PRINCIPAL)
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASO 1: Cargar tabla principal y tablas dimensionales
+    # ─────────────────────────────────────────────────────────────────────────
+    print("─" * 70)
+    print("  PASO 1: Cargando archivos CSV")
+    print("─" * 70)
+
+    df_principal = cargar_csv_seguro(TABLA_PRINCIPAL, "Tabla Principal")
     if df_principal is None:
-        print("[ERROR FATAL] No se pudo cargar la tabla principal. Proceso detenido.")
+        print("\n  ✗ ERROR FATAL: No se pudo cargar la tabla principal. Proceso detenido.")
         return
 
-    # Cargar tablas dimensionales
-    dim_turno       = cargar_csv(DIR_ENTRADA, DIM_TURNO)
-    dim_tecnico     = cargar_csv(DIR_ENTRADA, DIM_TECNICO)
-    dim_producto    = cargar_csv(DIR_ENTRADA, DIM_PRODUCTO)
-    dim_linea       = cargar_csv(DIR_ENTRADA, DIM_LINEA)
-    dim_etapa       = cargar_csv(DIR_ENTRADA, DIM_ETAPA)
-    dim_diseno      = cargar_csv(DIR_ENTRADA, DIM_DISENO_PRODUCTO)
-    dim_autorizador = cargar_csv(DIR_ENTRADA, DIM_AUTORIZADOR)
-    dim_motivo      = cargar_csv(DIR_ENTRADA, DIM_MOTIVO_CAUSA)
-    dim_decision    = cargar_csv(DIR_ENTRADA, DIM_DECISION_EMPLEO)
-
-    # Verificar que todas las dimensionales se cargaron
-    dimensionales = {
-        DIM_TURNO: dim_turno, DIM_TECNICO: dim_tecnico,
-        DIM_PRODUCTO: dim_producto, DIM_LINEA: dim_linea,
-        DIM_ETAPA: dim_etapa, DIM_DISENO_PRODUCTO: dim_diseno,
-        DIM_AUTORIZADOR: dim_autorizador, DIM_MOTIVO_CAUSA: dim_motivo,
-        DIM_DECISION_EMPLEO: dim_decision
+    # Cargar dimensionales
+    dims = {}
+    dims_config = {
+        "Turno": DIM_TURNO,
+        "Tecnico": DIM_TECNICO,
+        "Producto": DIM_PRODUCTO,
+        "Linea": DIM_LINEA,
+        "Etapa": DIM_ETAPA,
+        "DisenoProducto": DIM_DISENO_PRODUCTO,
+        "Autorizador": DIM_AUTORIZADOR,
+        "MotivoCausa": DIM_MOTIVO_CAUSA,
+        "DecisionEmpleo": DIM_DECISION_EMPLEO,
     }
-    for nombre, df in dimensionales.items():
-        if df is None:
-            print(f"[ERROR FATAL] Tabla dimensional '{nombre}' no cargada. Proceso detenido.")
-            return
+    error_fatal = False
+    for nombre, archivo in dims_config.items():
+        df_dim = cargar_csv_seguro(archivo, f"Dim_{nombre}")
+        if df_dim is None:
+            print(f"\n  ✗ ERROR FATAL: No se pudo cargar {archivo}. Proceso detenido.")
+            error_fatal = True
+            break
+        dims[nombre] = df_dim
 
-    # -----------------------------------------------------------------
+    if error_fatal:
+        return
+
+    # ─────────────────────────────────────────────────────────────────────────
     # PASO 2: Identificar columnas dinámicas
-    # -----------------------------------------------------------------
-    print("\n--- PASO 2: Identificando columnas dinámicas ---")
+    # ─────────────────────────────────────────────────────────────────────────
+    print("\n" + "─" * 70)
+    print("  PASO 2: Identificando columnas dinámicas")
+    print("─" * 70)
 
-    columnas_principal = list(df_principal.columns)
-    cols_longitud = identificar_columnas_longitud(columnas_principal)
-    cols_diametro = identificar_columnas_diametro(columnas_principal)
-    cols_quimico  = identificar_columnas_quimico(columnas_principal)
+    todas_columnas = list(df_principal.columns)
 
-    print(f"  Columnas Longitud ({len(cols_longitud)}): {cols_longitud}")
-    print(f"  Columnas Diámetro ({len(cols_diametro)}): {cols_diametro}")
-    print(f"  Columnas Químico  ({len(cols_quimico)}): {cols_quimico}")
+    # Columnas AF - para LONGITUD (antes de "AF - Conforme Longitud")
+    cols_af = [c for c in todas_columnas if c.startswith("AF - ")]
+    try:
+        idx_conf_long = todas_columnas.index("AF - Conforme Longitud")
+        cols_longitud = [c for c in cols_af if todas_columnas.index(c) < idx_conf_long]
+    except ValueError:
+        cols_longitud = []
+        print("  [WARN] No se encontró columna 'AF - Conforme Longitud'")
 
-    # Validar cantidades vs arrays de IDs
+    # Columnas AF - para DIÁMETRO (después de "AF - Longitud <= 10.00 %" y antes de "AF - Conforme Diametro")
+    try:
+        idx_long_10 = todas_columnas.index("AF - Longitud <= 10.00 %")
+        idx_conf_diam = todas_columnas.index("AF - Conforme Diametro")
+        cols_diametro = [c for c in cols_af
+                         if todas_columnas.index(c) > idx_long_10
+                         and todas_columnas.index(c) < idx_conf_diam]
+    except ValueError:
+        cols_diametro = []
+        print("  [WARN] No se encontraron columnas delimitadoras para diámetro")
+
+    # Columnas VQ - para QUÍMICO
+    cols_quimico = [c for c in todas_columnas if c.startswith("VQ - ")]
+
+    print(f"  Columnas Longitud (AF -): {len(cols_longitud)} encontradas (esperadas: {len(Idrangolongitud)})")
+    print(f"  Columnas Diámetro (AF -): {len(cols_diametro)} encontradas (esperadas: {len(Idrangodiametro)})")
+    print(f"  Columnas Químico  (VQ -): {len(cols_quimico)} encontradas (esperadas: {len(Idvariablequimica)})")
+
     if len(cols_longitud) != len(Idrangolongitud):
-        print(f"  [ADVERTENCIA] Columnas longitud ({len(cols_longitud)}) != Idrangolongitud ({len(Idrangolongitud)})")
+        print(f"  [WARN] Cantidad de columnas de longitud ({len(cols_longitud)}) no coincide con Idrangolongitud ({len(Idrangolongitud)})")
     if len(cols_diametro) != len(Idrangodiametro):
-        print(f"  [ADVERTENCIA] Columnas diámetro ({len(cols_diametro)}) != Idrangodiametro ({len(Idrangodiametro)})")
+        print(f"  [WARN] Cantidad de columnas de diámetro ({len(cols_diametro)}) no coincide con Idrangodiametro ({len(Idrangodiametro)})")
     if len(cols_quimico) != len(Idvariablequimica):
-        print(f"  [ADVERTENCIA] Columnas químico ({len(cols_quimico)}) != Idvariablequimica ({len(Idvariablequimica)})")
+        print(f"  [WARN] Cantidad de columnas de químico ({len(cols_quimico)}) no coincide con Idvariablequimica ({len(Idvariablequimica)})")
 
-    # -----------------------------------------------------------------
-    # PASO 3 y 4: Iterar filas y llenar las 12 tablas
-    # -----------------------------------------------------------------
-    print("\n--- PASO 3-4: Iterando filas y llenando tablas ---")
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASO 3: Inicializar listas para acumular filas
+    # ─────────────────────────────────────────────────────────────────────────
+    filas_t01 = []  # Fact_Registro
+    filas_t02 = []  # Fact_Longitud
+    filas_t03 = []  # Fact_Diametro
+    filas_t04 = []  # Fact_Finos
+    filas_t05 = []  # Fact_Parametros_Fisicos
+    filas_t06 = []  # Fact_Densidad_Especifica
+    filas_t07 = []  # Fact_Particulas
+    filas_t08 = []  # Fact_Flotabilidad
+    filas_t09 = []  # Fact_Quimico
+    filas_t10 = []  # Fact_Permeabilidad
+    filas_t11 = []  # Fact_Otros_Fisico
+    filas_t12 = []  # Fact_Control_Calidad
 
-    # Listas para acumular filas de cada tabla
-    filas_t01 = []
-    filas_t02 = []
-    filas_t03 = []
-    filas_t04 = []
-    filas_t05 = []
-    filas_t06 = []
-    filas_t07 = []
-    filas_t08 = []
-    filas_t09 = []
-    filas_t10 = []
-    filas_t11 = []
-    filas_t12 = []
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASO 4: Iterar fila por fila de la tabla principal
+    # ─────────────────────────────────────────────────────────────────────────
+    print("\n" + "─" * 70)
+    print("  PASO 3-4: Iterando filas y llenando tablas")
+    print("─" * 70)
 
     total_filas = len(df_principal)
+    if MODO_PRUEBA:
+        filas_a_procesar = min(FILAS_PRUEBA, total_filas)
+    else:
+        filas_a_procesar = total_filas
 
-    for idx, fila in df_principal.iterrows():
+    print(f"  Total filas en tabla principal: {total_filas}")
+    print(f"  Filas a procesar: {filas_a_procesar}\n")
+
+    errores_lookup = []
+
+    for idx in range(filas_a_procesar):
+        fila = df_principal.iloc[idx]
         id_registro = generar_id_registro(idx)
 
-        if (idx + 1) % 100 == 0 or idx == 0:
-            print(f"  Procesando fila {idx + 1}/{total_filas} - {id_registro}")
+        # --- Valores comunes ---
+        lote = extraer_valor(fila, "Lote")
+        fecha_produccion = convertir_lote_a_fecha(lote)
+        codigo = extraer_valor(fila, "Codigo")
 
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         # TABLA 01: Fact_Registro
-        # ==============================================================
-        # Lookups
-        turno_val = obtener_valor(fila, "Turno")
-        id_turno = buscar_en_dimension(dim_turno, "Turno", turno_val)
+        # ═══════════════════════════════════════════════════════════════════
+        id_turno = buscar_en_dimension(dims["Turno"], "Turno", extraer_valor(fila, "Turno"))
+        id_tecnico = buscar_en_dimension(dims["Tecnico"], "AbreviaturaNombre", extraer_valor(fila, "TAC"))
+        id_producto = buscar_con_filtros_fecha(dims["Producto"], codigo, fecha_produccion)
+        linea_letra = extraer_valor(fila, "Linea")
+        linea_num = convertir_linea(linea_letra)
+        id_linea = buscar_en_dimension(dims["Linea"], "Linea", linea_num)
+        id_etapa = buscar_en_dimension(dims["Etapa"], "Etapa", extraer_valor(fila, "Etapa"))
+        id_diseno = buscar_con_filtros_fecha(dims["DisenoProducto"], codigo, fecha_produccion)
+        id_autorizador = buscar_en_dimension(dims["Autorizador"], "AbreviaturaNombre", extraer_valor(fila, "Autorizado por:"))
 
-        tac_val = obtener_valor(fila, "TAC")
-        id_tecnico = buscar_en_dimension(dim_tecnico, "AbreviaturaNombre", tac_val)
-
-        codigo_val = obtener_valor(fila, "Codigo")
-        id_producto = buscar_en_dimension(dim_producto, "Codigo", codigo_val)
-
-        linea_val = obtener_valor(fila, "Linea")
-        linea_num = convertir_linea(linea_val)
-        id_linea = buscar_en_dimension(dim_linea, "Linea", linea_num) if linea_num is not None else None
-
-        etapa_val = obtener_valor(fila, "Etapa")
-        id_etapa = buscar_en_dimension(dim_etapa, "Etapa", etapa_val)
-
-        id_diseno = buscar_en_dimension(dim_diseno, "Codigo", codigo_val)
-
-        autorizador_val = obtener_valor(fila, "Autorizado por:")
-        id_autorizador = buscar_en_dimension(dim_autorizador, "AbreviaturaNombre", autorizador_val)
-
-        lote_val = obtener_valor(fila, "Lote")
-        fecha_produccion = convertir_lote_a_fecha(lote_val)
-
-        filas_t01.append({
+        fila_t01 = {
             "IdRegistro":       id_registro,
             "Proceso":          PROCESO,
             "Tamano":           TAMANO,
-            "Fecha":            obtener_valor(fila, "Fecha"),
+            "Fecha":            extraer_valor(fila, "Fecha"),
             "IdTurno":          id_turno,
             "IdIngeniero":      None,
             "IdTecnico":        id_tecnico,
             "IdProducto":       id_producto,
             "IdLinea":          id_linea,
-            "Hora":             obtener_valor(fila, "Hora"),
-            "Lote":             lote_val,
+            "Hora":             extraer_valor(fila, "Hora"),
+            "Lote":             lote,
             "FechaProduccion":  fecha_produccion,
             "IdEtapa":          id_etapa,
             "TolvaPorEnvasar":  None,
-            "CantidadBolsas":   obtener_valor(fila, "Total Bolsas"),
-            "Toneladas":        obtener_valor(fila, "TN"),
-            "CodigoQM":         obtener_valor(fila, "Codigo QM"),
+            "CantidadBolsas":   extraer_valor(fila, "Total Bolsas"),
+            "Toneladas":        extraer_valor(fila, "TN"),
+            "CodigoQM":         extraer_valor(fila, "Codigo QM"),
             "IdDisenoProducto": id_diseno,
             "IdAutorizador":    id_autorizador,
             "VerEspTecnica":    None,
             "VerEtiqueta":      None,
-            "VerFormula":       obtener_valor(fila, "Ver"),
-            "Agrupador":        obtener_valor(fila, "Agrupador"),
-        })
+            "VerFormula":       extraer_valor(fila, "Ver"),
+            "Agrupador":        extraer_valor(fila, "Agrupador"),
+        }
+        filas_t01.append(fila_t01)
 
-        # ==============================================================
-        # TABLA 02: Fact_Longitud_Extruido_0_5
-        # ==============================================================
-        for i, col in enumerate(cols_longitud):
-            id_rango = Idrangolongitud[i] if i < len(Idrangolongitud) else None
-            filas_t02.append({
-                "IdRegistro": id_registro,
-                "IdRango":    id_rango,
-                "Valor":      obtener_valor_limpio(fila, col),
-            })
+        # Registrar errores de lookup
+        if id_turno is None and extraer_valor(fila, "Turno") is not None:
+            errores_lookup.append(f"Fila {idx}: Turno '{extraer_valor(fila, 'Turno')}' no encontrado")
+        if id_tecnico is None and extraer_valor(fila, "TAC") is not None:
+            errores_lookup.append(f"Fila {idx}: Técnico '{extraer_valor(fila, 'TAC')}' no encontrado")
+        if id_producto is None and codigo is not None:
+            errores_lookup.append(f"Fila {idx}: Producto '{codigo}' no encontrado")
+        if id_linea is None and linea_letra is not None:
+            errores_lookup.append(f"Fila {idx}: Línea '{linea_letra}' no encontrada")
+        if id_etapa is None and extraer_valor(fila, "Etapa") is not None:
+            errores_lookup.append(f"Fila {idx}: Etapa '{extraer_valor(fila, 'Etapa')}' no encontrada")
+        if id_diseno is None and codigo is not None:
+            errores_lookup.append(f"Fila {idx}: DiseñoProducto '{codigo}' no encontrado")
+        if id_autorizador is None and extraer_valor(fila, "Autorizado por:") is not None:
+            errores_lookup.append(f"Fila {idx}: Autorizador '{extraer_valor(fila, 'Autorizado por:')}' no encontrado")
 
-        # ==============================================================
-        # TABLA 03: Fact_Diametro_Extruido_0_5
-        # ==============================================================
-        for i, col in enumerate(cols_diametro):
-            id_rango = Idrangodiametro[i] if i < len(Idrangodiametro) else None
-            filas_t03.append({
-                "IdRegistro": id_registro,
-                "IdRango":    id_rango,
-                "Valor":      obtener_valor_limpio(fila, col),
-            })
+        # ═══════════════════════════════════════════════════════════════════
+        # TABLA 02: Fact_Longitud (N filas por cada fila principal)
+        # ═══════════════════════════════════════════════════════════════════
+        for j, col in enumerate(cols_longitud):
+            if j < len(Idrangolongitud):
+                filas_t02.append({
+                    "IdRegistro": id_registro,
+                    "IdRango":    Idrangolongitud[j],
+                    "Valor":      limpiar_valor_numerico(extraer_valor(fila, col)),
+                })
 
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
+        # TABLA 03: Fact_Diametro (N filas por cada fila principal)
+        # ═══════════════════════════════════════════════════════════════════
+        for j, col in enumerate(cols_diametro):
+            if j < len(Idrangodiametro):
+                filas_t03.append({
+                    "IdRegistro": id_registro,
+                    "IdRango":    Idrangodiametro[j],
+                    "Valor":      limpiar_valor_numerico(extraer_valor(fila, col)),
+                })
+
+        # ═══════════════════════════════════════════════════════════════════
         # TABLA 04: Fact_Finos
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         filas_t04.append({
             "IdRegistro":      id_registro,
             "Muestra":         None,
             "ChampasGr":       None,
-            "FinosBajo250um":  obtener_valor_limpio(fila, "AF - % de Finos <250 um"),
+            "FinosBajo250um":  limpiar_valor_numerico(extraer_valor(fila, "AF - % de Finos <250 um")),
             "FinosBajo800um":  None,
             "FinosBajo1000um": None,
             "PctChampas":      None,
@@ -453,158 +521,168 @@ def ejecutar_llenado():
             "PcFinosBajo1000um": None,
         })
 
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         # TABLA 05: Fact_Parametros_Fisicos
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         filas_t05.append({
             "IdRegistro":      id_registro,
-            "PctConfLongitud": obtener_valor_limpio(fila, "AF - Conforme Longitud"),
-            "PctConfDiametro": obtener_valor_limpio(fila, "AF - Conforme Diametro"),
+            "PctConfLongitud": limpiar_valor_numerico(extraer_valor(fila, "AF - Conforme Longitud")),
+            "PctConfDiametro": limpiar_valor_numerico(extraer_valor(fila, "AF - Conforme Diametro")),
         })
 
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         # TABLA 06: Fact_Densidad_Especifica
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         filas_t06.append({
-            "IdRegistro":        id_registro,
-            "Vol1":              obtener_valor_limpio(fila, "DE - VOL.1"),
-            "Vol2":              obtener_valor_limpio(fila, "DE - VOL.2"),
-            "DiferenciaVolumen": obtener_valor_limpio(fila, "DE - DIF. VOLUMEN"),
-            "Peso":              obtener_valor_limpio(fila, "DE - PESO"),
-            "DensidadEspecifica": obtener_valor_limpio(fila, "DE - DENSIDAD ESPECIFICA (kg/L)"),
+            "IdRegistro":         id_registro,
+            "Vol1":               limpiar_valor_numerico(extraer_valor(fila, "DE - VOL.1")),
+            "Vol2":               limpiar_valor_numerico(extraer_valor(fila, "DE - VOL.2")),
+            "DiferenciaVolumen":  limpiar_valor_numerico(extraer_valor(fila, "DE - DIF. VOLUMEN")),
+            "Peso":               limpiar_valor_numerico(extraer_valor(fila, "DE - PESO")),
+            "DensidadEspecifica": limpiar_valor_numerico(extraer_valor(fila, "DE - DENSIDAD ESPECIFICA (kg/L)")),
         })
 
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         # TABLA 07: Fact_Particulas
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         filas_t07.append({
-            "IdRegistro":        id_registro,
-            "NroParticulas":     obtener_valor_limpio(fila, "PPG - Particulas"),
-            "Peso":              obtener_valor_limpio(fila, "PPG - Peso"),
-            "ParticulasPorGramo": obtener_valor_limpio(fila, "PPG - Part./g"),
+            "IdRegistro":         id_registro,
+            "NroParticulas":      limpiar_valor_numerico(extraer_valor(fila, "PPG - Particulas")),
+            "Peso":               limpiar_valor_numerico(extraer_valor(fila, "PPG - Peso")),
+            "ParticulasPorGramo": limpiar_valor_numerico(extraer_valor(fila, "PPG - Part./g")),
         })
 
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         # TABLA 08: Fact_Flotabilidad
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         filas_t08.append({
             "IdRegistro":        id_registro,
-            "NroParticulas":     obtener_valor_limpio(fila, "FH - Pellets que Flotan 140 PPT"),
-            "Peso":              obtener_valor_limpio(fila, "FH - PESO2"),
-            "TiempoHundimiento": obtener_valor_limpio(fila, "FH - Tiempo de Hundimiento 140ppt(seg)2"),
-            "PctFlotabilidad":   obtener_valor_limpio(fila, "FH - Flotabilidad % 140 (10s)ppt"),
-            "PctHundimiento":    obtener_valor_limpio(fila, "FH - % Hundimiento 140"),
+            "NroParticulas":     limpiar_valor_numerico(extraer_valor(fila, "FH - Pellets que Flotan 140 PPT")),
+            "Peso":              limpiar_valor_numerico(extraer_valor(fila, "FH - PESO2")),
+            "TiempoHundimiento": limpiar_valor_numerico(extraer_valor(fila, "FH - Tiempo de Hundimiento 140ppt(seg)2")),
+            "PctFlotabilidad":   limpiar_valor_numerico(extraer_valor(fila, "FH - Flotabilidad % 140 (10s)ppt")),
+            "PctHundimiento":    limpiar_valor_numerico(extraer_valor(fila, "FH - % Hundimiento 140")),
         })
 
-        # ==============================================================
-        # TABLA 09: Fact_Quimico_Extruido_0_5
-        # ==============================================================
-        for i, col in enumerate(cols_quimico):
-            id_variable = Idvariablequimica[i] if i < len(Idvariablequimica) else None
-            filas_t09.append({
-                "IdRegistro": id_registro,
-                "IdVariable": id_variable,
-                "Valor":      obtener_valor_limpio(fila, col),
-            })
+        # ═══════════════════════════════════════════════════════════════════
+        # TABLA 09: Fact_Quimico (N filas por cada fila principal)
+        # ═══════════════════════════════════════════════════════════════════
+        for j, col in enumerate(cols_quimico):
+            if j < len(Idvariablequimica):
+                filas_t09.append({
+                    "IdRegistro": id_registro,
+                    "IdVariable": Idvariablequimica[j],
+                    "Valor":      limpiar_valor_numerico(extraer_valor(fila, col)),
+                })
 
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         # TABLA 10: Fact_Permeabilidad
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         filas_t10.append({
             "IdRegistro":      id_registro,
             "IdPermeabilidad": 1,
             "Peso1":           50,
-            "Peso2":           obtener_valor_limpio(fila, "AF - W2"),
-            "Permeabilidad":   obtener_valor_limpio(fila, "AF - PM"),
+            "Peso2":           limpiar_valor_numerico(extraer_valor(fila, "AF - W2")),
+            "Permeabilidad":   limpiar_valor_numerico(extraer_valor(fila, "AF - PM")),
         })
 
-        # ==============================================================
-        # TABLA 11: Fact_Otros_Fisico_Extruido_0_5
-        # ==============================================================
-        # Fila 1: Hidroestabilidad
+        # ═══════════════════════════════════════════════════════════════════
+        # TABLA 11: Fact_Otros_Fisico (3 filas por cada fila principal)
+        # ═══════════════════════════════════════════════════════════════════
         filas_t11.append({
             "IdRegistro": id_registro,
             "IdVariable": 1,
-            "Valor":      obtener_valor_limpio(fila, "AF - Hidroestabilidad"),
+            "Valor":      extraer_valor(fila, "AF - Hidroestabilidad"),
         })
-        # Fila 2: Apariencia
         filas_t11.append({
             "IdRegistro": id_registro,
             "IdVariable": 2,
-            "Valor":      obtener_valor(fila, "AF - Apariencia"),  # Puede ser texto
+            "Valor":      extraer_valor(fila, "AF - Apariencia"),
         })
-        # Fila 3: % Rebabas
         filas_t11.append({
             "IdRegistro": id_registro,
             "IdVariable": 4,
-            "Valor":      obtener_valor_limpio(fila, "AF - % Rebabas"),
+            "Valor":      limpiar_valor_numerico(extraer_valor(fila, "AF - % Rebabas")),
         })
 
-        # ==============================================================
+        # ═══════════════════════════════════════════════════════════════════
         # TABLA 12: Fact_Control_Calidad
-        # ==============================================================
-        motivo_val = obtener_valor(fila, "Motivo Pulmon")
-        causa_val  = obtener_valor(fila, "Causas Pulmon")
-        id_motivo_causa = buscar_motivo_causa(dim_motivo, motivo_val, causa_val)
-
-        decision_val = obtener_valor(fila, "D. Empleo")
-        id_decision = buscar_en_dimension(dim_decision, "Decision", decision_val)
+        # ═══════════════════════════════════════════════════════════════════
+        motivo = extraer_valor(fila, "Motivo Pulmon")
+        causa = extraer_valor(fila, "Causas Pulmon")
+        id_motivo_causa = buscar_motivo_causa(dims["MotivoCausa"], motivo, causa)
+        id_decision = buscar_en_dimension(dims["DecisionEmpleo"], "Decision", extraer_valor(fila, "D. Empleo"))
 
         filas_t12.append({
             "IdRegistro":       id_registro,
             "IdMotivo_Causa":   id_motivo_causa,
             "IdDecision":       id_decision,
-            "ObservacionPulmon": obtener_valor(fila, "Observaciones"),
+            "ObservacionPulmon": extraer_valor(fila, "Observaciones"),
         })
 
-    # -----------------------------------------------------------------
-    # PASO 5: Exportar las 12 tablas a archivos CSV
-    # -----------------------------------------------------------------
-    print("\n--- PASO 5: Exportando tablas CSV ---")
+        # Progreso
+        if (idx + 1) % 100 == 0 or idx == filas_a_procesar - 1:
+            print(f"  Procesadas {idx + 1}/{filas_a_procesar} filas...")
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # PASO 5: Exportar las 12 tablas a archivos CSV (sin sobreescribir)
+    # ─────────────────────────────────────────────────────────────────────────
+    print("\n" + "─" * 70)
+    print("  PASO 5: Exportando tablas CSV (sin sobreescribir existentes)")
+    print("─" * 70)
 
     tablas_salida = {
-        TABLA_01_REGISTRO:           filas_t01,
-        TABLA_02_LONGITUD:           filas_t02,
-        TABLA_03_DIAMETRO:           filas_t03,
-        TABLA_04_FINOS:              filas_t04,
-        TABLA_05_PARAMETROS_FISICOS: filas_t05,
-        TABLA_06_DENSIDAD:           filas_t06,
-        TABLA_07_PARTICULAS:         filas_t07,
-        TABLA_08_FLOTABILIDAD:       filas_t08,
-        TABLA_09_QUIMICO:            filas_t09,
-        TABLA_10_PERMEABILIDAD:      filas_t10,
-        TABLA_11_OTROS_FISICO:       filas_t11,
-        TABLA_12_CONTROL_CALIDAD:    filas_t12,
+        TABLA_01_REGISTRO:           pd.DataFrame(filas_t01),
+        TABLA_02_LONGITUD:           pd.DataFrame(filas_t02),
+        TABLA_03_DIAMETRO:           pd.DataFrame(filas_t03),
+        TABLA_04_FINOS:              pd.DataFrame(filas_t04),
+        TABLA_05_PARAMETROS_FISICOS: pd.DataFrame(filas_t05),
+        TABLA_06_DENSIDAD:           pd.DataFrame(filas_t06),
+        TABLA_07_PARTICULAS:         pd.DataFrame(filas_t07),
+        TABLA_08_FLOTABILIDAD:       pd.DataFrame(filas_t08),
+        TABLA_09_QUIMICO:            pd.DataFrame(filas_t09),
+        TABLA_10_PERMEABILIDAD:      pd.DataFrame(filas_t10),
+        TABLA_11_OTROS_FISICO:       pd.DataFrame(filas_t11),
+        TABLA_12_CONTROL_CALIDAD:    pd.DataFrame(filas_t12),
     }
 
-    for nombre_archivo, filas in tablas_salida.items():
-        df_salida = pd.DataFrame(filas)
-        ruta_salida = os.path.join(DIR_SALIDA, nombre_archivo)
-        df_salida.to_csv(ruta_salida, index=False, encoding="utf-8")
-        print(f"  [OK] Exportado: {nombre_archivo} ({len(df_salida)} filas)")
+    for nombre_archivo, df in tablas_salida.items():
+        exportar_csv_sin_sobreescribir(df, nombre_archivo)
 
-    # -----------------------------------------------------------------
-    # PASO 6: Log de resumen
-    # -----------------------------------------------------------------
+    # ─────────────────────────────────────────────────────────────────────────
+    # RESUMEN FINAL
+    # ─────────────────────────────────────────────────────────────────────────
     print("\n" + "=" * 70)
-    print("RESUMEN DEL PROCESO")
+    print("  RESUMEN DEL PROCESO")
     print("=" * 70)
-    print(f"  Filas en tabla principal: {total_filas}")
-    print(f"  ID Registro: {generar_id_registro(0)} → {generar_id_registro(total_filas - 1)}")
-    print("-" * 70)
-    for nombre_archivo, filas in tablas_salida.items():
-        print(f"  {nombre_archivo:45s} → {len(filas):>6} filas")
-    total_generadas = sum(len(f) for f in tablas_salida.values())
-    print("-" * 70)
-    print(f"  {'TOTAL FILAS GENERADAS':45s} → {total_generadas:>6} filas")
-    print("=" * 70)
-    print("PROCESO FINALIZADO EXITOSAMENTE")
+    print(f"  Filas procesadas de tabla principal: {filas_a_procesar}")
+    print(f"  Modo: {'PRUEBA' if MODO_PRUEBA else 'COMPLETO'}")
+    print()
+    print(f"  {'Tabla':<45} {'Filas Nuevas':>12}")
+    print(f"  {'─' * 45} {'─' * 12}")
+    for nombre_archivo, df in tablas_salida.items():
+        print(f"  {nombre_archivo:<45} {len(df):>12}")
+    total_filas_generadas = sum(len(df) for df in tablas_salida.values())
+    print(f"  {'─' * 45} {'─' * 12}")
+    print(f"  {'TOTAL':<45} {total_filas_generadas:>12}")
+
+    if errores_lookup:
+        print(f"\n  ⚠ Errores de lookup encontrados: {len(errores_lookup)}")
+        for err in errores_lookup[:20]:  # Mostrar máximo 20
+            print(f"    - {err}")
+        if len(errores_lookup) > 20:
+            print(f"    ... y {len(errores_lookup) - 20} errores más")
+    else:
+        print("\n  ✓ No se encontraron errores de lookup")
+
+    print("\n" + "=" * 70)
+    print("  PROCESO FINALIZADO")
     print("=" * 70)
 
 
-# ============================================================================
-# 4. EJECUCIÓN
-# ============================================================================
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                    SECCIÓN 4: EJECUCIÓN                                    ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 
 if __name__ == "__main__":
     ejecutar_llenado()
