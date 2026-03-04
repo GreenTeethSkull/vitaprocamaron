@@ -44,7 +44,7 @@
 
 ### 3.2 Regla de Familia
 
-Evaluar el contenido de la columna `Categoria` (**case-insensitive**, no distingue mayúsculas/minúsculas):
+Evaluar el contenido de la columna `Categoria` (case-insensitive):
 
 | Si `Categoria` contiene... | Familia |
 |---|---|
@@ -55,11 +55,11 @@ Evaluar el contenido de la columna `Categoria` (**case-insensitive**, no disting
 
 ### 3.3 Regla de FechaInicio (desde Lote)
 
-1. **Formato del Lote:** `XXYYddMMXX`
+1. **Formato del Lote:** `XXYYMMddXX`
    - Posiciones 2-3 → Año (YY)
-   - Posiciones 4-5 → Día (dd)
-   - Posiciones 6-7 → Mes (MM)
-   - Ejemplo: `PE260102BO` → Año=26, Día=01, Mes=02 → `01/02/26`
+   - Posiciones 4-5 → Mes (MM)
+   - Posiciones 6-7 → Día (dd)
+   - Ejemplo: `PE260102BO` → Año=26, Mes=01, Día=02 → `02/01/26`
 
 2. **Agrupación:** Las filas se agrupan por la combinación de `Codigo` + `Agrupador`.
 3. **Selección:** Dentro de cada grupo, se toma **una única fila** con la **fecha mínima** extraída de `Lote`.
@@ -104,7 +104,7 @@ Evaluar el contenido de la columna `Categoria` (**case-insensitive**, no disting
 
 ### 4.2 Regla de FechaInicio (desde Lote)
 
-1. **Conversión de Lote:** Igual que en Dim_Producto (formato `XXYYddMMXX`).
+1. **Conversión de Lote:** Igual que en Dim_Producto (formato `XXYYMMddXX`).
 2. **Agrupación:** Las filas se agrupan por la combinación de:
    - `Codigo`
    - `Proteina F.(%)`
@@ -145,7 +145,7 @@ INICIO
 │     ├─ Remover carácter "%" de columnas numéricas
 │     └─ Reemplazar valores vacíos/nulos por "null"
 │
-├─ 3. Extraer fecha de columna "Lote" (formato XXYYddMMXX → dd/MM/YY)
+├─ 3. Extraer fecha de columna "Lote" (formato XXYYMMddXX → dd/MM/YY)
 │
 ├─ 4. GENERAR Dim_Producto.csv:
 │     ├─ 4.1 Agrupar por (Codigo, Agrupador)

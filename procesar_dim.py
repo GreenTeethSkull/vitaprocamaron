@@ -1,11 +1,10 @@
 import pandas as pd
-import os
 from datetime import timedelta
 
 # ============================================================
 # CONFIGURACIÓN EDITABLE
 # ============================================================
-ARCHIVO_PRINCIPAL = "EXT_CAMARON_2026_0.8.csv"
+ARCHIVO_PRINCIPAL = "EXT_CAMARON_2025_0.5.csv"
 ARCHIVO_DIM_PRODUCTO = "Dim_Producto.csv"
 ARCHIVO_DIM_DISENO = "Dim_Diseno_Producto.csv"
 
@@ -47,9 +46,9 @@ def limpiar_porcentaje(valor):
 
 def extraer_fecha_de_lote(lote):
     """
-    Convierte el formato de Lote XXYYddMMXX a fecha.
-    Ejemplo: PE260102BO → 01/02/2026
-    Posiciones: [0:2]=XX, [2:4]=YY, [4:6]=dd, [6:8]=MM, [8:10]=XX
+    Convierte el formato de Lote XXYYMMddXX a fecha.
+    Ejemplo: PE260102BO → 02/01/2026
+    Posiciones: [0:2]=XX, [2:4]=YY, [4:6]=MM, [6:8]=dd, [8:10]=XX
     """
     if pd.isna(lote) or str(lote).strip() == "":
         return None
@@ -58,8 +57,8 @@ def extraer_fecha_de_lote(lote):
         return None
     try:
         yy = int(lote_str[2:4])
-        dd = int(lote_str[4:6])
-        mm = int(lote_str[6:8])
+        mm = int(lote_str[4:6])
+        dd = int(lote_str[6:8])
         year = 2000 + yy
         return pd.Timestamp(year=year, month=mm, day=dd)
     except (ValueError, IndexError):
@@ -106,20 +105,6 @@ def calcular_fecha_fin(grupo_df):
             fecha_fin.append(None)
     grupo_df["FechaFin"] = fecha_fin
     return grupo_df
-
-
-def cargar_existente(archivo, columnas):
-    """
-    Carga un archivo CSV existente. Si no existe, retorna un DataFrame vacío
-    con las columnas indicadas.
-    """
-    if os.path.exists(archivo):
-        df_existente = pd.read_csv(archivo, encoding="utf-8")
-        print(f"  → Archivo existente cargado: {len(df_existente)} filas previas en {archivo}")
-        return df_existente
-    else:
-        print(f"  → Archivo {archivo} no existe, se creará uno nuevo.")
-        return pd.DataFrame(columns=columnas)
 
 
 # ============================================================
@@ -195,25 +180,8 @@ dim_producto = dim_producto[[
     "FechaInicio", "FechaFin", "FlagEstado"
 ]]
 
-# Paso 9: Cargar datos existentes y agregar nuevas filas sin duplicar
-columnas_dim_producto = [
-    "Codigo", "Proceso", "Tamano", "Categoria", "Familia",
-    "PctProteina", "TiempoVidaMeses", "Version", "Agrupador",
-    "FechaInicio", "FechaFin", "FlagEstado"
-]
-df_existente_prod = cargar_existente(ARCHIVO_DIM_PRODUCTO, columnas_dim_producto)
-
-# Concatenar existentes + nuevas
-dim_producto_final = pd.concat([df_existente_prod, dim_producto], ignore_index=True)
-
-# Eliminar duplicados basándose en las columnas clave (Codigo, Agrupador, FechaInicio)
-dim_producto_final = dim_producto_final.drop_duplicates(
-    subset=["Codigo", "Agrupador", "FechaInicio"], keep="first"
-).reset_index(drop=True)
-
-dim_producto_final.to_csv(ARCHIVO_DIM_PRODUCTO, index=False, encoding="utf-8")
-filas_nuevas_prod = len(dim_producto_final) - len(df_existente_prod)
-print(f"  → {filas_nuevas_prod} filas nuevas agregadas. Total: {len(dim_producto_final)} filas en {ARCHIVO_DIM_PRODUCTO}")
+dim_producto.to_csv(ARCHIVO_DIM_PRODUCTO, index=False, encoding="utf-8")
+print(f"  → {len(dim_producto)} filas generadas en {ARCHIVO_DIM_PRODUCTO}")
 
 # ============================================================
 # GENERAR Dim_Diseno_Producto.csv
@@ -284,24 +252,7 @@ dim_diseno = dim_diseno[[
     "Version", "FechaInicio", "HoraInicio", "FechaFin", "HoraFin", "FlagEstado"
 ]]
 
-# Paso 11: Cargar datos existentes y agregar nuevas filas sin duplicar
-columnas_dim_diseno = [
-    "Codigo", "Proteina", "Humedad", "Grasa", "Ceniza", "Fibra", "Almidon",
-    "Version", "FechaInicio", "HoraInicio", "FechaFin", "HoraFin", "FlagEstado"
-]
-df_existente_dis = cargar_existente(ARCHIVO_DIM_DISENO, columnas_dim_diseno)
-
-# Concatenar existentes + nuevas
-dim_diseno_final = pd.concat([df_existente_dis, dim_diseno], ignore_index=True)
-
-# Eliminar duplicados basándose en las columnas clave
-dim_diseno_final = dim_diseno_final.drop_duplicates(
-    subset=["Codigo", "Proteina", "Humedad", "Grasa", "Ceniza", "Fibra", "Almidon", "Version", "FechaInicio"],
-    keep="first"
-).reset_index(drop=True)
-
-dim_diseno_final.to_csv(ARCHIVO_DIM_DISENO, index=False, encoding="utf-8")
-filas_nuevas_dis = len(dim_diseno_final) - len(df_existente_dis)
-print(f"  → {filas_nuevas_dis} filas nuevas agregadas. Total: {len(dim_diseno_final)} filas en {ARCHIVO_DIM_DISENO}")
+dim_diseno.to_csv(ARCHIVO_DIM_DISENO, index=False, encoding="utf-8")
+print(f"  → {len(dim_diseno)} filas generadas en {ARCHIVO_DIM_DISENO}")
 
 print("\n✅ Proceso completado exitosamente.")
