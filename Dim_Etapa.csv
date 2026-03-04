@@ -1,0 +1,6 @@
+ID,Proceso,Etapa,FlagEstado
+1,Ambos,PT,1
+2,Extruido,ARRANQUE,1
+3,Extruido,ZARANDA,1
+4,Extruido,ARPP,1
+5,Extruido,ZRPP,1
