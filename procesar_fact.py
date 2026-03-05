@@ -8,20 +8,20 @@ from datetime import datetime
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # ===== TABLA PRINCIPAL =====
-TABLA_PRINCIPAL = "Extruido_2024.csv"
+TABLA_PRINCIPAL = "EXT_CAMARON_2026_0_8.csv"
 
 # ===== TABLAS DE SALIDA (12 tablas a llenar) =====
 TABLA_01_REGISTRO            = "Fact_Registro.csv"
-TABLA_02_LONGITUD            = "Fact_Longitud_Extruido_0_5.csv"
-TABLA_03_DIAMETRO            = "Fact_Diametro_Extruido_0_5.csv"
+TABLA_02_LONGITUD            = "Fact_Longitud_Extruido_0_8.csv"
+TABLA_03_DIAMETRO            = "Fact_Diametro_Extruido_0_8.csv"
 TABLA_04_FINOS               = "Fact_Finos.csv"
 TABLA_05_PARAMETROS_FISICOS  = "Fact_Parametros_Fisicos.csv"
 TABLA_06_DENSIDAD            = "Fact_Densidad_Especifica.csv"
 TABLA_07_PARTICULAS          = "Fact_Particulas.csv"
 TABLA_08_FLOTABILIDAD        = "Fact_Flotabilidad.csv"
-TABLA_09_QUIMICO             = "Fact_Quimico_Extruido_0_5.csv"
+TABLA_09_QUIMICO             = "Fact_Quimico_Extruido_0_8.csv"
 TABLA_10_PERMEABILIDAD       = "Fact_Permeabilidad.csv"
-TABLA_11_OTROS_FISICO        = "Fact_Otros_Fisico_Extruido_0_5.csv"
+TABLA_11_OTROS_FISICO        = "Fact_Otros_Fisico_Extruido_0_8.csv"
 TABLA_12_CONTROL_CALIDAD     = "Fact_Control_Calidad.csv"
 
 # ===== TABLAS DIMENSIONALES (lookup) =====
@@ -49,7 +49,7 @@ ID_REGISTRO_INICIO = "REG-0012001"  # Formato: REG-XXXXXXX, incremental
 
 # ===== FLAG DE PRUEBAS (Editable) =====
 MODO_PRUEBA  = True   # True = modo prueba, False = procesar todas las filas
-FILAS_PRUEBA = 2      # Cantidad de filas a procesar en modo prueba (1, 2, etc.)
+FILAS_PRUEBA = 1      # Cantidad de filas a procesar en modo prueba (1, 2, etc.)
 
 # ===== MAPEO DE CONVERSIÓN LÍNEA =====
 CONVERSION_LINEA = {
