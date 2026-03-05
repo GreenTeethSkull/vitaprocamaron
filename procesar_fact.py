@@ -107,11 +107,11 @@ def buscar_en_dimension(df_dim, columna_busqueda, valor, columna_resultado="ID")
     """Busca valor en columna_busqueda del DataFrame. Retorna columna_resultado o None."""
     if valor is None:
         return None
-    valor_str = str(valor).strip()
-    if valor_str == "" or valor_str.lower() == "nan":
+    valor_str = str(valor).strip().lower()
+    if valor_str == "" or valor_str == "nan":
         return None
     try:
-        coincidencias = df_dim[df_dim[columna_busqueda].astype(str).str.strip() == valor_str]
+        coincidencias = df_dim[df_dim[columna_busqueda].astype(str).str.strip().str.lower() == valor_str]
         if len(coincidencias) >= 1:
             resultado = coincidencias.iloc[0][columna_resultado]
             if pd.isna(resultado):
