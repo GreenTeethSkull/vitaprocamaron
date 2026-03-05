@@ -90,7 +90,10 @@ def extraer_valor(fila, columna):
         valor = fila[columna]
         if pd.isna(valor):
             return None
-        valor_str = str(valor).strip()
+        if isinstance(valor, float) and valor == int(valor):
+            valor_str = str(int(valor)).strip()
+        else:
+            valor_str = str(valor).strip()
         if valor_str == "" or valor_str.lower() == "nan":
             return None
         return valor_str
@@ -370,7 +373,7 @@ def ejecutar_llenado():
 
     # Columnas AF - para DIÁMETRO (después de "AF - Longitud <= 10.00 %" y antes de "AF - Conforme Diametro")
     try:
-        idx_long_10 = todas_columnas.index("AF - Longitud <= 10.00 %")
+        idx_long_10 = todas_columnas.index("AF - Longitud <=  10.00 %")
         idx_conf_diam = todas_columnas.index("AF - Conforme Diametro")
         cols_diametro = [c for c in cols_af
                         if todas_columnas.index(c) > idx_long_10
