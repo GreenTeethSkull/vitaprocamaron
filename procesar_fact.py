@@ -1,3 +1,4 @@
+from pickle import FALSE
 import pandas as pd
 import numpy as np
 import os
@@ -48,7 +49,7 @@ TAMANO  = "0,8"
 ID_REGISTRO_INICIO = "REG-0012001"  # Formato: REG-XXXXXXX, incremental
 
 # ===== FLAG DE PRUEBAS (Editable) =====
-MODO_PRUEBA  = True   # True = modo prueba, False = procesar todas las filas
+MODO_PRUEBA  = False   # True = modo prueba, False = procesar todas las filas
 FILAS_PRUEBA = 1      # Cantidad de filas a procesar en modo prueba (1, 2, etc.)
 
 # ===== MAPEO DE CONVERSIÓN LÍNEA =====
