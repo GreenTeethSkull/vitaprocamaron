@@ -163,7 +163,8 @@ CONVERSION_LINEA = {
 - **1er filtro:** Buscar `codigo` en columna `Codigo` de `df_dim`. Si hay 1 coincidencia → retornar `ID`.
 - **2do filtro:** Si hay varias coincidencias, filtrar donde `fecha_produccion >= FechaInicio`. Si hay 1 coincidencia → retornar `ID`.
 - **3er filtro:** Si aún hay varias, filtrar donde `fecha_produccion <= FechaFin`. Si hay 1 coincidencia → retornar `ID`.
-- Si no hay coincidencia en ningún paso → retornar `null`.
+- **Fallback:** Si después de los 3 filtros aún hay varias coincidencias (o los filtros de fecha no redujeron a 1), retornar el **primer ID** de la primera coincidencia del 1er filtro (por `Codigo`).
+- Si no hay **ninguna** coincidencia en el 1er filtro (por `Codigo`) → retornar `null`.
 
 ### 4.6 `convertir_linea(letra)`
 - Convierte letra a número según el mapeo editable: `A=13, B=14, C=15`.
@@ -188,7 +189,7 @@ CONVERSION_LINEA = {
 | IdTurno            | Extraer valor de columna `Turno` → buscar en `Dim_Turno.csv` columna `Turno` → extraer `ID`                                                                                                                   |
 | IdIngeniero        | Dejar vacío                                                                                                                                                                                                    |
 | IdTecnico          | Extraer valor de columna `TAC` → buscar en `Dim_Tecnico.csv` columna `AbreviaturaNombre` → extraer `ID`                                                                                                       |
-| IdProducto         | Búsqueda escalonada en `Dim_Producto.csv`: **1er filtro:** buscar `Codigo` en columna `Codigo`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **2do filtro:** `FechaProduccion >= FechaInicio`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **3er filtro:** `FechaProduccion <= FechaFin` → extraer `ID`. Si no hay coincidencia en ningún filtro → `null` |
+| IdProducto         | Búsqueda escalonada en `Dim_Producto.csv`: **1er filtro:** buscar `Codigo` en columna `Codigo`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **2do filtro:** `FechaProduccion >= FechaInicio`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **3er filtro:** `FechaProduccion <= FechaFin` → extraer `ID`. **Fallback:** si los filtros no reducen a 1, retornar el primer `ID` de la primera coincidencia por `Codigo`. Si no hay ninguna coincidencia por `Codigo` → `null` |
 | IdLinea            | Extraer valor de columna `Linea` → convertir letra a número (`A=13, B=14, C=15`) → buscar en `Dim_Linea.csv` columna `Linea` → extraer `ID`                                                                  |
 | Hora               | Extraer de columna `Hora`                                                                                                                                                                                      |
 | Lote               | Extraer de columna `Lote`                                                                                                                                                                                      |
@@ -198,7 +199,7 @@ CONVERSION_LINEA = {
 | CantidadBolsas     | Extraer de columna `Total Bolsas`                                                                                                                                                                              |
 | Toneladas          | Extraer de columna `TN`                                                                                                                                                                                        |
 | CodigoQM           | Extraer de columna `Codigo QM`                                                                                                                                                                                 |
-| IdDisenoProducto   | Búsqueda escalonada en `Dim_Diseno_Producto.csv`: **1er filtro:** buscar `Codigo` en columna `Codigo`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **2do filtro:** `FechaProduccion >= FechaInicio`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **3er filtro:** `FechaProduccion <= FechaFin` → extraer `ID`. Si no hay coincidencia en ningún filtro → `null` |
+| IdDisenoProducto   | Búsqueda escalonada en `Dim_Diseno_Producto.csv`: **1er filtro:** buscar `Codigo` en columna `Codigo`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **2do filtro:** `FechaProduccion >= FechaInicio`. Si hay 1 coincidencia → extraer `ID`. Si hay varias → **3er filtro:** `FechaProduccion <= FechaFin` → extraer `ID`. **Fallback:** si los filtros no reducen a 1, retornar el primer `ID` de la primera coincidencia por `Codigo`. Si no hay ninguna coincidencia por `Codigo` → `null` |
 | IdAutorizador      | Extraer valor de columna `Autorizado por:` → buscar en `Dim_Autorizador.csv` columna `AbreviaturaNombre` → extraer `ID`                                                                                       |
 | VerEspTecnica      | Dejar en blanco                                                                                                                                                                                                |
 | VerEtiqueta        | Dejar en blanco                                                                                                                                                                                                |

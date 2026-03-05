@@ -8,7 +8,7 @@ from datetime import datetime
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # ===== TABLA PRINCIPAL =====
-TABLA_PRINCIPAL = "EXT_CAMARON_2026_0_8.csv"
+TABLA_PRINCIPAL = "EXT_CAMARON_2026_0.8.csv"
 
 # ===== TABLAS DE SALIDA (12 tablas a llenar) =====
 TABLA_01_REGISTRO            = "Fact_Registro.csv"
@@ -36,8 +36,8 @@ DIM_MOTIVO_CAUSA    = "Dim_Motivo_Causa_No_Conforme.csv"
 DIM_DECISION_EMPLEO = "Dim_Decision_Empleo.csv"
 
 # ===== VARIABLES DE CONFIGURACIÓN =====
-Idrangolongitud   = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-Idrangodiametro   = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+Idrangolongitud   = [138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151]
+Idrangodiametro   = [152, 153, 154, 155, 156, 157, 158, 159, 160]
 Idvariablequimica = [1, 2, 3, 14, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
 # ===== PARÁMETROS MANUALES =====
@@ -163,6 +163,8 @@ def buscar_con_filtros_fecha(df_dim, codigo, fecha_produccion_str):
     1er filtro: Codigo
     2do filtro: FechaProduccion >= FechaInicio
     3er filtro: FechaProduccion <= FechaFin
+    Fallback: si los filtros no reducen a 1, retornar el primer ID por Codigo.
+    Solo retorna null si no hay ninguna coincidencia por Codigo.
     """
     if codigo is None:
         return None
@@ -175,15 +177,21 @@ def buscar_con_filtros_fecha(df_dim, codigo, fecha_produccion_str):
         coincidencias = df_dim[df_dim["Codigo"].astype(str).str.strip() == codigo_str]
 
         if len(coincidencias) == 0:
+            # No hay ninguna coincidencia → null
             return None
         if len(coincidencias) == 1:
             resultado = coincidencias.iloc[0]["ID"]
             return None if pd.isna(resultado) else resultado
 
-        # Hay varias coincidencias → aplicar 2do filtro
+        # Guardar primer ID como fallback (primera coincidencia por Codigo)
+        primer_id = coincidencias.iloc[0]["ID"]
+        primer_id = None if pd.isna(primer_id) else primer_id
+
+        # Hay varias coincidencias → intentar 2do filtro
         fecha_prod = fecha_str_a_date(fecha_produccion_str)
         if fecha_prod is None:
-            return None
+            # No se puede parsear la fecha → fallback al primer ID
+            return primer_id
 
         # 2do filtro: FechaProduccion >= FechaInicio
         filtradas = []
@@ -194,7 +202,8 @@ def buscar_con_filtros_fecha(df_dim, codigo, fecha_produccion_str):
                 filtradas.append(row)
 
         if len(filtradas) == 0:
-            return None
+            # Ninguna cumple el 2do filtro → fallback al primer ID
+            return primer_id
         if len(filtradas) == 1:
             resultado = filtradas[0]["ID"]
             return None if pd.isna(resultado) else resultado
@@ -207,11 +216,12 @@ def buscar_con_filtros_fecha(df_dim, codigo, fecha_produccion_str):
             if fecha_fin is not None and fecha_prod <= fecha_fin:
                 filtradas_final.append(row)
 
-        if len(filtradas_final) >= 1:
+        if len(filtradas_final) == 1:
             resultado = filtradas_final[0]["ID"]
             return None if pd.isna(resultado) else resultado
 
-        return None
+        # Fallback: los 3 filtros no redujeron a 1 → retornar primer ID
+        return primer_id
 
     except (KeyError, TypeError) as e:
         print(f"  [WARN] Error en buscar_con_filtros_fecha: {e}")
@@ -236,7 +246,7 @@ def buscar_motivo_causa(df_dim, motivo, causa):
         return None
     try:
         mask = (df_dim["Motivo"].astype(str).str.strip() == motivo_str) & \
-               (df_dim["Causa"].astype(str).str.strip() == causa_str)
+                (df_dim["Causa"].astype(str).str.strip() == causa_str)
         coincidencias = df_dim[mask]
         if len(coincidencias) >= 1:
             resultado = coincidencias.iloc[0]["ID"]
@@ -363,8 +373,8 @@ def ejecutar_llenado():
         idx_long_10 = todas_columnas.index("AF - Longitud <= 10.00 %")
         idx_conf_diam = todas_columnas.index("AF - Conforme Diametro")
         cols_diametro = [c for c in cols_af
-                         if todas_columnas.index(c) > idx_long_10
-                         and todas_columnas.index(c) < idx_conf_diam]
+                        if todas_columnas.index(c) > idx_long_10
+                        and todas_columnas.index(c) < idx_conf_diam]
     except ValueError:
         cols_diametro = []
         print("  [WARN] No se encontraron columnas delimitadoras para diámetro")
