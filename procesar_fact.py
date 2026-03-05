@@ -177,7 +177,9 @@ def buscar_con_filtros_fecha(df_dim, codigo, fecha_produccion_str):
 
     try:
         # 1er filtro: buscar por Codigo
-        coincidencias = df_dim[df_dim["Codigo"].astype(str).str.strip() == codigo_str]
+        coincidencias = df_dim[
+            df_dim["Codigo"].astype(str).str.strip().str.replace(r'\.0$', '', regex=True) == codigo_str
+        ]
 
         if len(coincidencias) == 0:
             # No hay ninguna coincidencia → null
