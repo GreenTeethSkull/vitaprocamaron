@@ -9,7 +9,7 @@ from datetime import datetime
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # ===== TABLA PRINCIPAL =====
-TABLA_PRINCIPAL = "EXT_CAMARON_2024_0.8.csv"
+TABLA_PRINCIPAL = "EXT_CAMARON_2026_0.5.csv"
 
 # ===== TABLAS DE SALIDA (12 tablas a llenar) =====
 TABLA_01_REGISTRO            = "Fact_Registro.csv"
@@ -37,17 +37,17 @@ DIM_MOTIVO_CAUSA    = "Dim_Motivo_Causa_No_Conforme.csv"
 DIM_DECISION_EMPLEO = "Dim_Decision_Empleo.csv"
 
 # ===== VARIABLES DE CONFIGURACIÓN =====
-Idrangolongitud   = [42, 43, 44, 45, 46, 47, 48, 49]
-Idrangodiametro   = [50, 51, 52, 53, 54, 55, 56, 57, 58]
+Idrangolongitud   = [107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117]
+Idrangodiametro   = [118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128]
 Idvariablequimica = [1, 2, 3, 14, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
 # ===== PARÁMETROS MANUALES =====
 PROCESO = "Extruido"
-TAMANO  = "0,8"
+TAMANO  = "0,5"
 
 # ===== ID DE REGISTRO INICIAL =====
 # ID_REGISTRO_INICIO = "REG-0012001"  # Formato: REG-XXXXXXX, incremental
-ID_REGISTRO_INICIO = "REG-0020207"
+ID_REGISTRO_INICIO = "REG-0025262"
 
 # ===== FLAG DE PRUEBAS (Editable) =====
 MODO_PRUEBA  = False   # True = modo prueba, False = procesar todas las filas
