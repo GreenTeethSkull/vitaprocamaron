@@ -47,7 +47,7 @@ TAMANO  = "0,8"
 
 # ===== ID DE REGISTRO INICIAL =====
 # ID_REGISTRO_INICIO = "REG-0012001"  # Formato: REG-XXXXXXX, incremental
-ID_REGISTRO_INICIO = "REG-0012145"
+ID_REGISTRO_INICIO = "REG-0012001"
 
 # ===== FLAG DE PRUEBAS (Editable) =====
 MODO_PRUEBA  = False   # True = modo prueba, False = procesar todas las filas
@@ -380,8 +380,8 @@ def ejecutar_llenado():
 
     # Columnas AF - para DIÁMETRO (después de "AF - Longitud <= 10.00 %" y antes de "AF - Conforme Diametro")
     try:
-        # idx_long_10 = todas_columnas.index("AF - Longitud <=  10.00 %")
-        idx_long_10 = todas_columnas.index("AF - Longitud <= 10.00 %")
+        idx_long_10 = todas_columnas.index("AF - Longitud <=  10.00 %")
+        # idx_long_10 = todas_columnas.index("AF - Longitud <= 10.00 %")
         idx_conf_diam = todas_columnas.index("AF - Conforme Diametro")
         cols_diametro = [c for c in cols_af
                         if todas_columnas.index(c) > idx_long_10
