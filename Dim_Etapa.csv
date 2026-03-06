@@ -6,3 +6,7 @@ ID,Proceso,Etapa,FlagEstado
 5,Extruido,ZRPP,1
 4,Extruido,ARRPP,1
 5,Extruido,ZRRPP,1
+6,Extruido,ENVASADO,1
+6,Extruido,ENVAZADO,1
+7,Extruido,TOLVA,1
+8,Extruido,DESCARGA,1
