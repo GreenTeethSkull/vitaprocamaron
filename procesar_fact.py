@@ -377,7 +377,8 @@ def ejecutar_llenado():
 
     # Columnas AF - para DIÁMETRO (después de "AF - Longitud <= 10.00 %" y antes de "AF - Conforme Diametro")
     try:
-        idx_long_10 = todas_columnas.index("AF - Longitud <=  10.00 %")
+        # idx_long_10 = todas_columnas.index("AF - Longitud <=  10.00 %")
+        idx_long_10 = todas_columnas.index("AF - Longitud <= 10.00 %")
         idx_conf_diam = todas_columnas.index("AF - Conforme Diametro")
         cols_diametro = [c for c in cols_af
                         if todas_columnas.index(c) > idx_long_10
