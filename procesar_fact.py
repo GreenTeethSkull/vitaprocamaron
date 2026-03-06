@@ -9,7 +9,7 @@ from datetime import datetime
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # ===== TABLA PRINCIPAL =====
-TABLA_PRINCIPAL = "EXT_CAMARON_2025_0.8.csv"
+TABLA_PRINCIPAL = "EXT_CAMARON_2024_0.8.csv"
 
 # ===== TABLAS DE SALIDA (12 tablas a llenar) =====
 TABLA_01_REGISTRO            = "Fact_Registro.csv"
@@ -366,14 +366,17 @@ def ejecutar_llenado():
 
     todas_columnas = list(df_principal.columns)
 
-    # Columnas AF - para LONGITUD (antes de "AF - Conforme Longitud")
+    # Columnas AF - para LONGITUD (después de "AF - Hidroestabilidad" y antes de "AF - Conforme Longitud")
     cols_af = [c for c in todas_columnas if c.startswith("AF - ")]
     try:
+        idx_hidro = todas_columnas.index("AF - Hidroestabilidad")
         idx_conf_long = todas_columnas.index("AF - Conforme Longitud")
-        cols_longitud = [c for c in cols_af if todas_columnas.index(c) < idx_conf_long]
+        cols_longitud = [c for c in cols_af
+                        if todas_columnas.index(c) > idx_hidro
+                        and todas_columnas.index(c) < idx_conf_long]
     except ValueError:
         cols_longitud = []
-        print("  [WARN] No se encontró columna 'AF - Conforme Longitud'")
+        print("  [WARN] No se encontró columna 'AF - Hidroestabilidad' o 'AF - Conforme Longitud'")
 
     # Columnas AF - para DIÁMETRO (después de "AF - Longitud <= 10.00 %" y antes de "AF - Conforme Diametro")
     try:

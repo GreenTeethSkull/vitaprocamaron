@@ -215,7 +215,7 @@ CONVERSION_LINEA = {
 **Relación:** 1 fila en tabla principal → **N filas** (una por cada columna `AF - ` de longitud).
 
 **Lógica de identificación de columnas:**
-- Tomar todas las columnas que empiecen con `"AF - "` **hasta antes** de la columna `"AF - Conforme Longitud"` (sin incluirla).
+- Tomar todas las columnas que empiecen con `"AF - "` **después** de la columna `"AF - Hidroestabilidad"` **hasta antes** de la columna `"AF - Conforme Longitud"` (sin incluirla).
 - Deben ser exactamente **10 columnas** (correspondientes a los 10 valores de `Idrangolongitud`).
 
 | Columna Destino | Origen / Lógica                                                                 |
