@@ -4,3 +4,5 @@ ID,Proceso,Etapa,FlagEstado
 3,Extruido,ZARANDA,1
 4,Extruido,ARPP,1
 5,Extruido,ZRPP,1
+4,Extruido,ARRPP,1
+5,Extruido,ZRRPP,1
