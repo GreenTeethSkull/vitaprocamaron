@@ -9,7 +9,7 @@ from datetime import datetime
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # ===== TABLA PRINCIPAL =====
-TABLA_PRINCIPAL = "EXT_CAMARON_2025_0.8.csv"
+TABLA_PRINCIPAL = "EXT_CAMARON_2024_0.8.csv"
 
 # ===== TABLAS DE SALIDA (12 tablas a llenar) =====
 TABLA_01_REGISTRO            = "Fact_Registro.csv"
@@ -37,8 +37,8 @@ DIM_MOTIVO_CAUSA    = "Dim_Motivo_Causa_No_Conforme.csv"
 DIM_DECISION_EMPLEO = "Dim_Decision_Empleo.csv"
 
 # ===== VARIABLES DE CONFIGURACIÓN =====
-Idrangolongitud   = [129, 130, 131, 132, 133, 134, 135, 136, 137]
-Idrangodiametro   = [152, 153, 154, 155, 156, 157, 158, 159, 160]
+Idrangolongitud   = [42, 43, 44, 45, 46, 47, 48, 49]
+Idrangodiametro   = [50, 51, 52, 53, 54, 55, 56, 57, 58]
 Idvariablequimica = [1, 2, 3, 14, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
 # ===== PARÁMETROS MANUALES =====
@@ -47,7 +47,7 @@ TAMANO  = "0,8"
 
 # ===== ID DE REGISTRO INICIAL =====
 # ID_REGISTRO_INICIO = "REG-0012001"  # Formato: REG-XXXXXXX, incremental
-ID_REGISTRO_INICIO = "REG-0012146"
+ID_REGISTRO_INICIO = "REG-0020207"
 
 # ===== FLAG DE PRUEBAS (Editable) =====
 MODO_PRUEBA  = False   # True = modo prueba, False = procesar todas las filas
