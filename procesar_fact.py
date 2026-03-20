@@ -37,7 +37,7 @@ DIM_MOTIVO_CAUSA    = "Dim_Motivo_Causa_No_Conforme.csv"
 DIM_DECISION_EMPLEO = "Dim_Decision_Empleo.csv"
 
 # ===== VARIABLES DE CONFIGURACIÓN =====
-Idrangolongitud   = [138, 139, 140, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151]
+Idrangolongitud   = [129, 130, 131, 132, 133, 134, 135, 136, 137]
 Idrangodiametro   = [152, 153, 154, 155, 156, 157, 158, 159, 160]
 Idvariablequimica = [1, 2, 3, 14, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 
@@ -47,7 +47,7 @@ TAMANO  = "0,8"
 
 # ===== ID DE REGISTRO INICIAL =====
 # ID_REGISTRO_INICIO = "REG-0012001"  # Formato: REG-XXXXXXX, incremental
-ID_REGISTRO_INICIO = "REG-0012001"
+ID_REGISTRO_INICIO = "REG-0012146"
 
 # ===== FLAG DE PRUEBAS (Editable) =====
 MODO_PRUEBA  = False   # True = modo prueba, False = procesar todas las filas
@@ -380,8 +380,8 @@ def ejecutar_llenado():
 
     # Columnas AF - para DIÁMETRO (después de "AF - Longitud <= 10.00 %" y antes de "AF - Conforme Diametro")
     try:
-        idx_long_10 = todas_columnas.index("AF - Longitud <=  10.00 %")
-        # idx_long_10 = todas_columnas.index("AF - Longitud <= 10.00 %")
+        # idx_long_10 = todas_columnas.index("AF - Longitud <=  10.00 %")
+        idx_long_10 = todas_columnas.index("AF - Longitud <= 10.00 %")
         idx_conf_diam = todas_columnas.index("AF - Conforme Diametro")
         cols_diametro = [c for c in cols_af
                         if todas_columnas.index(c) > idx_long_10
