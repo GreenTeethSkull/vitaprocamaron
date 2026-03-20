@@ -9,7 +9,7 @@ from datetime import datetime
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # ===== TABLA PRINCIPAL =====
-TABLA_PRINCIPAL = "EXT_CAMARON_2026_0.5.csv"
+TABLA_PRINCIPAL = "EXT_CAMARON_2025_0.5.csv"
 
 # ===== TABLAS DE SALIDA (12 tablas a llenar) =====
 TABLA_01_REGISTRO            = "Fact_Registro.csv"
@@ -47,7 +47,7 @@ TAMANO  = "0,5"
 
 # ===== ID DE REGISTRO INICIAL =====
 # ID_REGISTRO_INICIO = "REG-0012001"  # Formato: REG-XXXXXXX, incremental
-ID_REGISTRO_INICIO = "REG-0025262"
+ID_REGISTRO_INICIO = "REG-0025290"
 
 # ===== FLAG DE PRUEBAS (Editable) =====
 MODO_PRUEBA  = False   # True = modo prueba, False = procesar todas las filas
