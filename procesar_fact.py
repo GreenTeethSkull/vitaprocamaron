@@ -9,7 +9,7 @@ from datetime import datetime
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # ===== TABLA PRINCIPAL =====
-TABLA_PRINCIPAL = "EXT_CAMARON_2026_0.8.csv"
+TABLA_PRINCIPAL = "EXT_CAMARON_2025_0.8.csv"
 
 # ===== TABLAS DE SALIDA (12 tablas a llenar) =====
 TABLA_01_REGISTRO            = "Fact_Registro.csv"
