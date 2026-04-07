@@ -6,11 +6,11 @@ import os
 # ╚══════════════════════════════════════════════════════════════════════════════╝
 
 # ===== ARCHIVOS =====
-tabla_principal = "FUELLE_2026_0.5.csv"
+tabla_principal = "FUELLE_2025_0.5.csv"
 tabla_a_llenar  = "Fact_Registro_Fuelle.csv"
 
 # ===== ID DE REGISTRO INICIAL =====
-primer_registro = "REG-0025262"
+primer_registro = "REG-0025290"
 
 # ===== FLAG DE PRUEBAS =====
 MODO_PRUEBA  = False   # True = modo prueba, False = procesar todas las filas
