@@ -5,13 +5,13 @@ from datetime import timedelta
 # ============================================================
 # CONFIGURACIÓN EDITABLE
 # ============================================================
-ARCHIVO_PRINCIPAL = "EXT_CAMARON_2024_0.8.csv"
+ARCHIVO_PRINCIPAL = "EXT_CAMARON_2026_0.5.csv"
 ARCHIVO_DIM_PRODUCTO = "Dim_Producto.csv"
 ARCHIVO_DIM_DISENO = "Dim_Diseno_Producto.csv"
 
 # Valores fijos editables
 PROCESO = "Extruido"
-TAMANO = "0,8"
+TAMANO = "0,5"
 HORA_INICIO = "00:00"
 HORA_FIN = "23:59"
 
